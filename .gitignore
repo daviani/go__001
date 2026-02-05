@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+security-audit
+.claude/
+CLAUDE.md
+
+# Go binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test binary
+*.test
+
+# Go coverage
+*.out
+coverage.html
+
+# Go build cache
+/bin/
+/dist/
+
+# Dependency directories (if vendoring)
+/vendor/
+
+# Debug
+__debug_bin*
