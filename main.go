@@ -10,13 +10,17 @@ func main() {
 
 	dns := scanner.DNSScanner{}
 	ssl := scanner.SSLScanner{}
-	fmt.Printf(dns.Scan("daviani.dev"))
-	fmt.Printf(ssl.Scan("daviani.dev------"))
+	scanners := []scanner.Scanner{dns, ssl}
+	results := map[string]string{}
 
-	runScann(ssl, "daviani.dev")
-	runScann(dns, "daviani.dev")
+	for _, value := range scanners {
+		result := value.Scan("daviani.dev")
+		key := value.Name() + "_daviani.dev"
+		results[key] = result
+	}
+	fmt.Println(results)
 }
 
 func runScann(s scanner.Scanner, domain string) {
-	fmt.Printf(s.Scan(domain))
+	fmt.Println(s.Scan(domain))
 }
