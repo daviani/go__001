@@ -7,20 +7,31 @@ import (
 )
 
 func main() {
-
+	// Initialisation des scanners (structs vides qui implémentent l'interface Scanner)
 	dns := scanner.DNSScanner{}
 	ssl := scanner.SSLScanner{}
+
+	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
 	scanners := []scanner.Scanner{dns, ssl}
-	results := map[string]string{}
 
+	// Channel pour la communication entre goroutines
+	// Les goroutines enverront leurs résultats ici
+	ch := make(chan string)
+
+	// Boucle 1 : Lance une goroutine par scanner (exécution en parallèle)
+	// Chaque goroutine exécute Scan() et envoie le résultat dans le channel
 	for _, value := range scanners {
-		result := value.Scan("daviani.dev")
-		key := value.Name() + "_daviani.dev"
-		results[key] = result
+		go func(s scanner.Scanner) {
+			result := s.Scan("daviani.dev")
+			ch <- result // Envoie le résultat dans le channel
+		}(value) // On passe "value" en paramètre pour éviter les problèmes de closure
 	}
-	fmt.Println(results)
-}
 
-func runScann(s scanner.Scanner, domain string) {
-	fmt.Println(s.Scan(domain))
+	// Boucle 2 : Récupère les résultats du channel
+	// On itère autant de fois qu'il y a de scanners (= autant de résultats attendus)
+	// <-ch bloque jusqu'à ce qu'une goroutine envoie un résultat
+	for i := 0; i < len(scanners); i++ {
+		result := <-ch // Reçoit un résultat du channel
+		fmt.Println(result)
+	}
 }
