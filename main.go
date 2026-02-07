@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/daviani/go__001/internal/scanner"
@@ -15,6 +16,8 @@ func main() {
 	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
 	scanners := []scanner.Scanner{dns, ssl, header}
 
+	domain := flag.String("domain", "daviani.dev", "Domaine à scanner")
+	flag.Parse()
 	// Channel pour la communication entre goroutines
 	// Les goroutines enverront leurs résultats ici
 	ch := make(chan string)
@@ -23,7 +26,7 @@ func main() {
 	// Chaque goroutine exécute Scan() et envoie le résultat dans le channel
 	for _, value := range scanners {
 		go func(s scanner.Scanner) {
-			result := s.Scan("daviani.dev")
+			result := s.Scan(*domain)
 			ch <- result // Envoie le résultat dans le channel
 		}(value) // On passe "value" en paramètre pour éviter les problèmes de closure
 	}
