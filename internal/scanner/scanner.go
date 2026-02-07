@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 )
 
 // Scanner définit le contrat que tous les scanners doivent implémenter
@@ -19,11 +20,15 @@ type DNSScanner struct{}
 // SSLScanner - Scanner pour les certificats SSL/TLS
 type SSLScanner struct{}
 
+type HeaderScanner struct{}
+
 // Name retourne l'identifiant du scanner DNS
 func (d DNSScanner) Name() string { return "dns" }
 
 // Name retourne l'identifiant du scanner SSL
 func (s SSLScanner) Name() string { return "ssl" }
+
+func (h HeaderScanner) Name() string { return "header" }
 
 // Scan effectue une résolution DNS et retourne les adresses IP du domaine
 // Utilise net.LookupIP qui résout les records A (IPv4) et AAAA (IPv6)
@@ -66,4 +71,22 @@ func (s SSLScanner) Scan(domain string) string {
 		cert.Subject.CommonName,
 		cert.Issuer.Organization[0],
 		cert.NotAfter.Format("02/01/2006"))
+}
+
+func (h HeaderScanner) Scan(domain string) string {
+	resp, err := http.Get("https://" + domain)
+
+	if err != nil {
+		return "Erreur: " + err.Error()
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	headers := resp.Header
+
+	return fmt.Sprintf("HSTS: %s | CSP: %s | X-Frame-Options: %s",
+		headers.Get("Strict-Transport-Security"),
+		headers.Get("Content-Security-Policy"),
+		headers.Get("X-Frame-Options"),
+	)
 }

@@ -10,9 +10,10 @@ func main() {
 	// Initialisation des scanners (structs vides qui implémentent l'interface Scanner)
 	dns := scanner.DNSScanner{}
 	ssl := scanner.SSLScanner{}
+	header := scanner.HeaderScanner{}
 
 	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
-	scanners := []scanner.Scanner{dns, ssl}
+	scanners := []scanner.Scanner{dns, ssl, header}
 
 	// Channel pour la communication entre goroutines
 	// Les goroutines enverront leurs résultats ici
