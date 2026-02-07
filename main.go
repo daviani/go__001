@@ -16,7 +16,11 @@ func main() {
 	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
 	scanners := []scanner.Scanner{dns, ssl, header}
 
-	domain := flag.String("domain", "daviani.dev", "Domaine à scanner")
+	var domain string
+
+	flag.StringVar(&domain, "domain", "daviani.dev", "Domaine à scanner")
+	flag.StringVar(&domain, "d", "daviani.dev", "Domaine à scanner (raccourci)")
+
 	flag.Parse()
 	// Channel pour la communication entre goroutines
 	// Les goroutines enverront leurs résultats ici
@@ -26,7 +30,7 @@ func main() {
 	// Chaque goroutine exécute Scan() et envoie le résultat dans le channel
 	for _, value := range scanners {
 		go func(s scanner.Scanner) {
-			result := s.Scan(*domain)
+			result := s.Scan(domain)
 			ch <- result // Envoie le résultat dans le channel
 		}(value) // On passe "value" en paramètre pour éviter les problèmes de closure
 	}
