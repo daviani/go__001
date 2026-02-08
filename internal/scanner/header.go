@@ -13,12 +13,12 @@ func (h HeaderScanner) Name() string { return "header" }
 
 // Scan effectue une requête HTTP et récupère les headers de sécurité
 // Vérifie HSTS, CSP et X-Frame-Options (protection contre le clickjacking)
-func (h HeaderScanner) Scan(domain string) string {
+func (h HeaderScanner) Scan(domain string) (string, error) {
 	// http.Get effectue une requête GET - on ajoute https:// car domain = "daviani.dev"
 	resp, err := http.Get("https://" + domain)
 
 	if err != nil {
-		return "Erreur: " + err.Error()
+		return "", fmt.Errorf("erreur de header: %w", err)
 	}
 
 	// defer ferme le body à la fin de la fonction (libère les ressources)
@@ -33,5 +33,5 @@ func (h HeaderScanner) Scan(domain string) string {
 		headers.Get("Strict-Transport-Security"),
 		headers.Get("Content-Security-Policy"),
 		headers.Get("X-Frame-Options"),
-	)
+	), nil
 }

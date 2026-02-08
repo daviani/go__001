@@ -13,11 +13,11 @@ func (s SSLScanner) Name() string { return "ssl" }
 
 // Scan établit une connexion TLS et récupère les infos du certificat
 // Utilise crypto/tls pour une connexion sécurisée native (pas de curl/openssl)
-func (s SSLScanner) Scan(domain string) string {
+func (s SSLScanner) Scan(domain string) (string, error) {
 	// tls.Dial ouvre une connexion TLS sur le port 443
 	conn, err := tls.Dial("tcp", domain+":443", nil)
 	if err != nil {
-		return "Erreur SSL: " + err.Error()
+		return "", fmt.Errorf("erreur SSL: %w", err)
 	}
 
 	// defer garantit que la connexion sera fermée à la fin de la fonction
@@ -32,5 +32,5 @@ func (s SSLScanner) Scan(domain string) string {
 	return fmt.Sprintf("Domaine: %s | Émetteur: %s | Expire: %s",
 		cert.Subject.CommonName,
 		cert.Issuer.Organization[0],
-		cert.NotAfter.Format("02/01/2006"))
+		cert.NotAfter.Format("02/01/2006")), nil
 }

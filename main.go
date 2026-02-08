@@ -41,9 +41,13 @@ func main() {
 	// Chaque goroutine exécute Scan() et envoie le résultat dans le channel
 	for _, value := range scanners {
 		go func(s scanner.Scanner) {
+			result, err := s.Scan(domain)
+			if err != nil {
+				result = "Erreur: " + err.Error()
+			}
 			ch <- scanner.Result{
 				Name:   s.Name(),
-				Result: s.Scan(domain),
+				Result: result,
 			}
 		}(value) // On passe "value" en paramètre pour éviter les problèmes de closure
 	}

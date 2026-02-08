@@ -1,6 +1,9 @@
 package scanner
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 // DNSScanner - Scanner pour la résolution DNS (records A et AAAA)
 type DNSScanner struct{}
@@ -10,34 +13,34 @@ func (d DNSScanner) Name() string { return "dns" }
 
 // Scan effectue une résolution DNS complète du domaine
 // Résout les records A/AAAA (IPs), MX (serveurs mail), NS (nameservers) et TXT (SPF, DMARC...)
-func (d DNSScanner) Scan(domain string) string {
+func (d DNSScanner) Scan(domain string) (string, error) {
 
 	// --- Records A et AAAA (adresses IP) ---
 	// LookupIP retourne une slice de net.IP (IPv4 + IPv6)
 	ips, err := net.LookupIP(domain)
 	if err != nil {
-		return "Erreur de DNS" + err.Error()
+		return "", fmt.Errorf("erreur de DNS: %w", err)
 	}
 
 	// --- Records MX (serveurs mail) ---
 	// LookupMX retourne []*net.MX — chaque MX a un champ .Host (string) et .Pref (priorité)
 	mxs, err := net.LookupMX(domain)
 	if err != nil {
-		return "Erreur de MX" + err.Error()
+		return "", fmt.Errorf("erreur de MX: %w", err)
 	}
 
 	// --- Records NS (nameservers) ---
 	// LookupNS retourne []*net.NS — chaque NS a un champ .Host (string)
 	nss, err := net.LookupNS(domain)
 	if err != nil {
-		return "Erreur de NS" + err.Error()
+		return "", fmt.Errorf("erreur de NS: %w", err)
 	}
 
 	// --- Records TXT (SPF, vérification domaine...) ---
 	// LookupTXT retourne directement []string — pas besoin de .Host ou .String()
 	txts, err := net.LookupTXT(domain)
 	if err != nil {
-		return "Erreur de TXT" + err.Error()
+		return "", fmt.Errorf("erreur de TXT: %w", err)
 	}
 
 	// Construction des résultats par type de record
@@ -66,5 +69,5 @@ func (d DNSScanner) Scan(domain string) string {
 		resultTXT += txt + "\n"
 	}
 
-	return resultIP + resultMX + resultNS + resultTXT
+	return resultIP + resultMX + resultNS + resultTXT, nil
 }

@@ -21,7 +21,7 @@ func (sb SubdomainScanner) Name() string { return "subdomain" }
 
 // Scan interroge l'API crt.sh pour trouver tous les sous-domaines
 // ayant un certificat SSL émis pour le domaine cible
-func (sb SubdomainScanner) Scan(domain string) string {
+func (sb SubdomainScanner) Scan(domain string) (string, error) {
 
 	// Construction de l'URL crt.sh - %%25 = %25 encodé (wildcard %)
 	url := fmt.Sprintf("https://crt.sh/?q=%%25.%s&output=json", domain)
@@ -29,7 +29,7 @@ func (sb SubdomainScanner) Scan(domain string) string {
 	// Requête HTTP GET vers l'API crt.sh
 	resp, err := http.Get(url)
 	if err != nil {
-		return "Erreur: " + err.Error()
+		return "", fmt.Errorf("erreur de subdomain: %w", err)
 	}
 
 	// Ferme le body à la fin de la fonction (libère les ressources réseau)
@@ -39,7 +39,7 @@ func (sb SubdomainScanner) Scan(domain string) string {
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		return "Erreur: " + err.Error()
+		return "", fmt.Errorf("erreur de lecture: %w", err)
 	}
 
 	// Désérialise le JSON brut en slice de CrtShEntry
@@ -48,7 +48,7 @@ func (sb SubdomainScanner) Scan(domain string) string {
 	err = json.Unmarshal(body, &results)
 
 	if err != nil {
-		return "Erreur JSON: " + err.Error()
+		return "", fmt.Errorf("erreur de Désérialise: %w", err)
 	}
 
 	// map[string]bool utilisée comme Set (dédoublonnage)
@@ -69,5 +69,5 @@ func (sb SubdomainScanner) Scan(domain string) string {
 		result += key + " , "
 	}
 
-	return result
+	return result, nil
 }
