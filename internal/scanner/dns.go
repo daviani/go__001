@@ -8,21 +8,63 @@ type DNSScanner struct{}
 // Name retourne l'identifiant du scanner DNS
 func (d DNSScanner) Name() string { return "dns" }
 
-// Scan effectue une résolution DNS et retourne les adresses IP du domaine
-// Utilise net.LookupIP qui résout les records A (IPv4) et AAAA (IPv6)
+// Scan effectue une résolution DNS complète du domaine
+// Résout les records A/AAAA (IPs), MX (serveurs mail), NS (nameservers) et TXT (SPF, DMARC...)
 func (d DNSScanner) Scan(domain string) string {
-	// LookupIP retourne une slice d'IPs et une erreur potentielle
-	ips, err := net.LookupIP(domain)
 
-	// Gestion d'erreur Go : on vérifie si err n'est pas nil
+	// --- Records A et AAAA (adresses IP) ---
+	// LookupIP retourne une slice de net.IP (IPv4 + IPv6)
+	ips, err := net.LookupIP(domain)
 	if err != nil {
 		return "Erreur de DNS" + err.Error()
 	}
 
-	// Construction du résultat en parcourant la slice d'IPs
-	result := "Ips pour " + domain + ": "
-	for _, ip := range ips {
-		result += ip.String() + " "
+	// --- Records MX (serveurs mail) ---
+	// LookupMX retourne []*net.MX — chaque MX a un champ .Host (string) et .Pref (priorité)
+	mxs, err := net.LookupMX(domain)
+	if err != nil {
+		return "Erreur de MX" + err.Error()
 	}
-	return result
+
+	// --- Records NS (nameservers) ---
+	// LookupNS retourne []*net.NS — chaque NS a un champ .Host (string)
+	nss, err := net.LookupNS(domain)
+	if err != nil {
+		return "Erreur de NS" + err.Error()
+	}
+
+	// --- Records TXT (SPF, vérification domaine...) ---
+	// LookupTXT retourne directement []string — pas besoin de .Host ou .String()
+	txts, err := net.LookupTXT(domain)
+	if err != nil {
+		return "Erreur de TXT" + err.Error()
+	}
+
+	// Construction des résultats par type de record
+	resultIP := "IPs pour " + domain + ": \n"
+	resultMX := "MXs pour " + domain + ": \n"
+	resultNS := "NSs pour " + domain + ": \n"
+	resultTXT := "TXTs pour " + domain + ": \n"
+
+	// ip.String() convertit net.IP en string lisible (ex: "188.114.96.2")
+	for _, ip := range ips {
+		resultIP += ip.String() + "\n"
+	}
+
+	// mx.Host est un champ string de la struct net.MX (ex: "mx01.mail.icloud.com.")
+	for _, mx := range mxs {
+		resultMX += mx.Host + "\n"
+	}
+
+	// ns.Host est un champ string de la struct net.NS (ex: "fish.ns.cloudflare.com.")
+	for _, ns := range nss {
+		resultNS += ns.Host + "\n"
+	}
+
+	// txt est déjà une string, pas besoin de conversion
+	for _, txt := range txts {
+		resultTXT += txt + "\n"
+	}
+
+	return resultIP + resultMX + resultNS + resultTXT
 }
