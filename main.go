@@ -20,9 +20,10 @@ func main() {
 	dns := scanner.DNSScanner{}
 	ssl := scanner.SSLScanner{}
 	header := scanner.HeaderScanner{}
+	subdomain := scanner.SubdomainScanner{}
 	defaultDomain := config.RequireEnv("DEFAULT_DOMAIN")
 	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
-	scanners := []scanner.Scanner{dns, ssl, header}
+	scanners := []scanner.Scanner{dns, ssl, header, subdomain}
 
 	var domain string
 
