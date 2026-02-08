@@ -35,13 +35,13 @@ func main() {
 	flag.Parse()
 	// Channel pour la communication entre goroutines
 	// Les goroutines enverront leurs résultats ici
-	ch := make(chan scanner.ScannerResult)
+	ch := make(chan scanner.Result)
 
 	// Boucle 1 : Lance une goroutine par scanner (exécution en parallèle)
 	// Chaque goroutine exécute Scan() et envoie le résultat dans le channel
 	for _, value := range scanners {
 		go func(s scanner.Scanner) {
-			ch <- scanner.ScannerResult{
+			ch <- scanner.Result{
 				Name:   s.Name(),
 				Result: s.Scan(domain),
 			}

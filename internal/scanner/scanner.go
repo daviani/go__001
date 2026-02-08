@@ -7,9 +7,9 @@ type Scanner interface {
 	Name() string
 }
 
-// ScannerResult transporte le résultat d'un scan via le channel
+// Result transporte le résultat d'un scan via le channel
 // Permet d'associer le nom du scanner à son résultat (goroutines → main)
-type ScannerResult struct {
+type Result struct {
 	Name   string
 	Result string
 }
