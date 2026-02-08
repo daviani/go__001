@@ -4,22 +4,30 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/daviani/go__001/internal/config"
 	"github.com/daviani/go__001/internal/scanner"
+	"github.com/joho/godotenv"
 )
 
+func init() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		return
+	}
+}
 func main() {
 	// Initialisation des scanners (structs vides qui implémentent l'interface Scanner)
 	dns := scanner.DNSScanner{}
 	ssl := scanner.SSLScanner{}
 	header := scanner.HeaderScanner{}
-
+	defaultDomain := config.RequireEnv("DEFAULT_DOMAIN")
 	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
 	scanners := []scanner.Scanner{dns, ssl, header}
 
 	var domain string
 
-	flag.StringVar(&domain, "domain", "daviani.dev", "Domaine à scanner")
-	flag.StringVar(&domain, "d", "daviani.dev", "Domaine à scanner (raccourci)")
+	flag.StringVar(&domain, "domain", defaultDomain, "Domaine à scanner")
+	flag.StringVar(&domain, "d", defaultDomain, "Domaine à scanner (raccourci)")
 
 	flag.Parse()
 	// Channel pour la communication entre goroutines
