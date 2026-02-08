@@ -60,20 +60,33 @@ func main() {
 		sr := <-ch
 		results[sr.Name] = sr.Result
 	}
+	// Définition des sections du rapport avec struct anonyme
+	// Permet d'afficher les résultats dans un ordre défini (pas l'ordre aléatoire des goroutines)
+	sections := []struct {
+		Title string
+		Key   string
+	}{
+		{"DNS", "dns"},
+		{"SSL", "ssl"},
+		{"HEADERS", "header"},
+		{"SOUS-DOMAINES", "subdomain"},
+		{"FICHIERS SENSIBLES", "sensitive"},
+	}
 
-	// Affichage du rapport formaté — ordre défini manuellement
+	// Affichage du rapport — header unique avant la boucle
 	fmt.Println("══════════════════════════════════════════")
 	fmt.Println("── Rapport de sécurité — " + domain + " ──────────────")
 	fmt.Println("══════════════════════════════════════════")
-	fmt.Println("── DNS ──────────────────────────────")
-	fmt.Println(results["dns"])
-	fmt.Println("── SSL ──────────────────────────────")
-	fmt.Println(results["ssl"])
-	fmt.Println("── HEADER ──────────────────────────────")
-	fmt.Println(results["header"])
-	fmt.Println("── SUBDOMAIN ──────────────────────────────")
-	fmt.Println(results["subdomain"])
-	fmt.Println("── SENSITIVE ──────────────────────────────")
-	fmt.Println(results["sensitive"])
-	fmt.Println("══════════════════════════════════════════")
+
+	for _, section := range sections {
+		printSection(section.Title, results[section.Key])
+	}
+
+	fmt.Println("═════════════ END ═════════════════")
+}
+
+// printSection affiche une section du rapport avec un titre formaté
+func printSection(title string, content string) {
+	fmt.Println("── " + title + " ──────────────────────────────")
+	fmt.Println(content)
 }
