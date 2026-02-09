@@ -1,0 +1,49 @@
+# Pipeline CI/CD — déclenché à chaque push sur main
+# Étapes : checkout → install Go → dépendances → tests → build → Docker
+name: CI
+
+# Déclenché sur push et pull requests vers main
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    # Runner Ubuntu fourni par GitHub (gratuit pour les repos publics)
+    runs-on: ubuntu-latest
+    steps:
+      # ── Step 1 : Récupérer le code ──
+      # Équivalent "git clone" du repo dans le runner GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Step 2 : Installer Go ──
+      # Installe la version Go spécifiée (doit matcher go.mod)
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      # ── Step 3 : Télécharger les dépendances ──
+      # Équivalent "npm install" — télécharge les modules Go
+      - name: Download dependencies
+        run: go mod download
+
+      # ── Step 4 : Lancer les tests ──
+      # ./... = tous les packages récursivement
+      # -v = verbose (détail de chaque test)
+      # Si un test échoue, le pipeline s'arrête ici
+      - name: Run tests
+        run: go test ./... -v
+
+      # ── Step 5 : Builder le binaire ──
+      # Vérifie que le code compile correctement
+      - name: Build
+        run: go build -o scanner .
+
+      # ── Step 6 : Builder l'image Docker ──
+      # Vérifie que le Dockerfile multi-stage fonctionne
+      - name: Build Docker image
+        run: docker build -t scanner .
