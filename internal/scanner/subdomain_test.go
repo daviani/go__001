@@ -1,6 +1,9 @@
 package scanner
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 // TestSubdomainScanner_Name vérifie que le scanner retourne le bon identifiant
 func TestSubdomainScanner_Name(t *testing.T) {
@@ -14,6 +17,13 @@ func TestSubdomainScanner_Name(t *testing.T) {
 // TestSubdomainScanner_Scan — Happy path : vérifie que crt.sh retourne des sous-domaines
 // Ce test est plus lent (~3-20s) car il appelle l'API externe crt.sh
 func TestSubdomainScanner_Scan(t *testing.T) {
+	// Si on est en CI (GitHub Actions), on skip ce test
+	// car crt.sh rate-limit les requêtes depuis les datacenters
+
+	if os.Getenv("CI") != "" {
+		t.Skip("skipping in CI: crt.sh rate-limits datacenter IPs")
+	}
+
 	// crt.sh interroge les Certificate Transparency logs pour trouver les sous-domaines
 	result, err := SubdomainScanner{}.Scan("google.com")
 
