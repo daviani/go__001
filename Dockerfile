@@ -29,8 +29,5 @@ FROM alpine:latest
 # --from=builder référence le stage nommé "builder" au-dessus
 COPY --from=builder /app/scanner /scanner
 
-# Copie le fichier d'environnement (contient DEFAULT_DOMAIN)
-COPY .env .env
-
 # Commande exécutée au lancement du conteneur
 CMD ["/scanner"]
