@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // CrtShEntry représente une entrée de la réponse JSON de l'API crt.sh
@@ -48,7 +49,7 @@ func (sb SubdomainScanner) Scan(domain string) (string, error) {
 	err = json.Unmarshal(body, &results)
 
 	if err != nil {
-		return "", fmt.Errorf("erreur de Désérialise: %w", err)
+		return "", fmt.Errorf("erreur de désérialisation: %w", err)
 	}
 
 	// map[string]bool utilisée comme Set (dédoublonnage)
@@ -63,11 +64,17 @@ func (sb SubdomainScanner) Scan(domain string) (string, error) {
 
 	// Boucle 2 : parcourt les clés de la map (sous-domaines uniques)
 	// et construit la string de retour
-	result := "Sous domaines: "
+
+	// Convertit les clés de la map en slice pour utiliser strings.Join
+	// Équivalent JS : Object.keys(unique).join(", ")
+	keys := []string{}
 
 	for key := range unique {
-		result += key + " , "
+		keys = append(keys, key)
 	}
+
+	// strings.Join évite la virgule trailing qu'on avait avec la concaténation manuelle
+	result := "Sous domaines: " + strings.Join(keys, " , ")
 
 	return result, nil
 }

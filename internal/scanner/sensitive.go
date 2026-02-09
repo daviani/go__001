@@ -36,7 +36,9 @@ func (d SensitiveScanner) Scan(domain string) (string, error) {
 		if resp.StatusCode == 200 {
 			result += path + " → " + resp.Status + "\n"
 		}
-
+		// Ferme le body à chaque itération (pas de defer dans une boucle)
+		// defer s'exécute à la fin de la FONCTION, pas de l'itération → fuite de ressources
+		_ = resp.Body.Close()
 	}
 
 	// Si aucun fichier sensible trouvé, retourner un message explicite
