@@ -24,57 +24,39 @@ func (sb SubdomainScanner) Name() string { return "subdomain" }
 // ayant un certificat SSL émis pour le domaine cible
 func (sb SubdomainScanner) Scan(domain string) (string, error) {
 
-	// Construction de l'URL crt.sh - %%25 = %25 encodé (wildcard %)
+	// Construction de l'URL crt.sh — %%25 = %25 encodé (wildcard %)
 	url := fmt.Sprintf("https://crt.sh/?q=%%25.%s&output=json", domain)
 
-	// Requête HTTP GET vers l'API crt.sh
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("erreur de subdomain: %w", err)
 	}
-
-	// Ferme le body à la fin de la fonction (libère les ressources réseau)
 	defer func() { _ = resp.Body.Close() }()
 
-	// io.ReadAll lit tout le stream HTTP et retourne un []byte (slice d'octets)
+	// Lit le body HTTP en entier et le désérialise en slice de CrtShEntry
 	body, err := io.ReadAll(resp.Body)
-
 	if err != nil {
 		return "", fmt.Errorf("erreur de lecture: %w", err)
 	}
 
-	// Désérialise le JSON brut en slice de CrtShEntry
-	// &results = pointeur pour que Unmarshal puisse modifier la variable directement
+	// &results : pointeur nécessaire pour que Unmarshal puisse remplir la slice
 	var results []CrtShEntry
-	err = json.Unmarshal(body, &results)
-
-	if err != nil {
+	if err = json.Unmarshal(body, &results); err != nil {
 		return "", fmt.Errorf("erreur de désérialisation: %w", err)
 	}
 
-	// map[string]bool utilisée comme Set (dédoublonnage)
-	// Les maps sont des types référence : pas besoin de & pour les modifier
+	// Dédoublonnage — map[string]bool utilisée comme Set
 	unique := make(map[string]bool)
-
-	// Boucle 1 : parcourt les résultats JSON et ajoute chaque sous-domaine dans la map
-	// Si le sous-domaine existe déjà, il est simplement écrasé (même valeur true)
 	for _, entry := range results {
 		unique[entry.NameValue] = true
 	}
 
-	// Boucle 2 : parcourt les clés de la map (sous-domaines uniques)
-	// et construit la string de retour
-
-	// Convertit les clés de la map en slice pour utiliser strings.Join
+	// Extrait les clés uniques et les joint en string
 	// Équivalent JS : Object.keys(unique).join(", ")
-	keys := []string{}
-
+	var keys []string
 	for key := range unique {
 		keys = append(keys, key)
 	}
 
-	// strings.Join évite la virgule trailing qu'on avait avec la concaténation manuelle
-	result := "Sous domaines: " + strings.Join(keys, " , ")
-
-	return result, nil
+	return "Sous domaines: " + strings.Join(keys, " , "), nil
 }
