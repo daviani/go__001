@@ -1,6 +1,10 @@
 package main
 
 import (
+	"log"
+	"os"
+	"strconv"
+
 	"github.com/daviani/go__001/internal/api"
 	"github.com/daviani/go__001/internal/scanner"
 	"github.com/joho/godotenv"
@@ -25,10 +29,18 @@ func main() {
 	header := scanner.HeaderScanner{}
 	subdomain := scanner.SubdomainScanner{}
 	sensitive := scanner.SensitiveScanner{}
+	port := os.Getenv("PORT")
 
+	if port == "" {
+		port = "8082"
+	}
+	portInt, err := strconv.Atoi(port)
+	if err != nil {
+		log.Fatal("PORT invalide : " + port)
+	}
 	// Slice contenant tous les scanners - on peut en ajouter autant qu'on veut
 	scanners := []scanner.Scanner{dns, ssl, header, subdomain, sensitive}
 
-	server := api.Server{Port: 8082, Scanners: scanners}
+	server := api.Server{Port: portInt, Scanners: scanners}
 	server.Start()
 }
