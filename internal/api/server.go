@@ -32,6 +32,46 @@ type ScanResult struct {
 	Result  string `json:"result"`
 }
 
+// makeScanHandler retourne un handler HTTP pour un scanner donné (closure)
+// Évite la duplication : le même code gère les 5 routes /scan/*
+// name et s sont "capturés" par la closure — accessibles à chaque requête
+// Équivalent JS : const makeHandler = (name, scanner) => (req, res) => { ... }
+func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// r.URL.Query().Get("domain") extrait le query param "domain" de l'URL
+		// Équivalent Express : req.query.domain
+		domain := r.URL.Query().Get("domain")
+		// Validation : si le domain est vide, retourne une erreur 400 (Bad Request)
+		// 400 = erreur client ("tu as mal appelé l'API")
+		// 500 = erreur serveur ("le serveur a planté")
+		if domain == "" {
+			http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+			return
+		}
+
+		// Lance le scan DNS — peut échouer si le domaine est invalide
+		result, err := s.Scan(domain)
+		if err != nil {
+			// http.Error envoie un message d'erreur + code HTTP 500 au client
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-type", "application/json")
+		// Encode le résultat dans le struct ScanResult et l'envoie en JSON
+		err = json.NewEncoder(w).Encode(ScanResult{
+			Scanner: name,
+			Domain:  domain,
+			Result:  result,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}
+}
+
 // Start enregistre les routes HTTP et démarre le serveur
 // w http.ResponseWriter = équivalent de res en Express (on écrit la réponse dedans)
 // r *http.Request = équivalent de req en Express (la requête entrante)
@@ -58,165 +98,15 @@ func (s *Server) Start() {
 		},
 	)
 
-	// Route /scan/dns — records A/AAAA, MX, NS, TXT
-	// Query param : ?domain=daviani.dev
-	http.HandleFunc(
-		"/scan/dns",
-		func(
-			w http.ResponseWriter,
-			r *http.Request) {
-			// r.URL.Query().Get("domain") extrait le query param "domain" de l'URL
-			// Équivalent Express : req.query.domain
-			domain := r.URL.Query().Get("domain")
-			// Validation : si le domain est vide, retourne une erreur 400 (Bad Request)
-			// 400 = erreur client ("tu as mal appelé l'API")
-			// 500 = erreur serveur ("le serveur a planté")
-			if domain == "" {
-				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
-				return
-			}
+	http.HandleFunc("/scan/dns", makeScanHandler("dns", scanner.DNSScanner{}))
 
-			// Lance le scan DNS — peut échouer si le domaine est invalide
-			result, err := scanner.DNSScanner{}.Scan(domain)
-			if err != nil {
-				// http.Error envoie un message d'erreur + code HTTP 500 au client
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+	http.HandleFunc("/scan/ssl", makeScanHandler("ssl", scanner.SSLScanner{}))
 
-			w.Header().Set("Content-type", "application/json")
-			// Encode le résultat dans le struct ScanResult et l'envoie en JSON
-			err = json.NewEncoder(w).Encode(ScanResult{
-				Scanner: "dns",
-				Domain:  domain,
-				Result:  result,
-			})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		},
-	)
+	http.HandleFunc("/scan/header", makeScanHandler("header", scanner.HeaderScanner{}))
 
-	// Route /scan/header — headers sécurité (HSTS, CSP, X-Frame-Options)
-	http.HandleFunc(
-		"/scan/header",
-		func(
-			w http.ResponseWriter,
-			r *http.Request) {
-			domain := r.URL.Query().Get("domain")
-			if domain == "" {
-				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
-				return
-			}
-			result, err := scanner.HeaderScanner{}.Scan(domain)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+	http.HandleFunc("/scan/sensitive", makeScanHandler("sensitive", scanner.SensitiveScanner{}))
 
-			w.Header().Set("Content-type", "application/json")
-			err = json.NewEncoder(w).Encode(ScanResult{
-				Scanner: "header",
-				Domain:  domain,
-				Result:  result,
-			})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		},
-	)
-
-	// Route /scan/sensitive — détection fichiers exposés (.env, .git/config, wp-config.php)
-	http.HandleFunc(
-		"/scan/sensitive",
-		func(
-			w http.ResponseWriter,
-			r *http.Request) {
-			domain := r.URL.Query().Get("domain")
-			if domain == "" {
-				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
-				return
-			}
-			result, err := scanner.SensitiveScanner{}.Scan(domain)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			w.Header().Set("Content-type", "application/json")
-			err = json.NewEncoder(w).Encode(ScanResult{
-				Scanner: "sensitive",
-				Domain:  domain,
-				Result:  result,
-			})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		},
-	)
-
-	// Route /scan/ssl — certificat TLS (émetteur, expiration)
-	http.HandleFunc(
-		"/scan/ssl",
-		func(
-			w http.ResponseWriter,
-			r *http.Request) {
-			domain := r.URL.Query().Get("domain")
-			if domain == "" {
-				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
-				return
-			}
-			result, err := scanner.SSLScanner{}.Scan(domain)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			w.Header().Set("Content-type", "application/json")
-			err = json.NewEncoder(w).Encode(ScanResult{
-				Scanner: "ssl",
-				Domain:  domain,
-				Result:  result,
-			})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		},
-	)
-
-	// Route /scan/subdomain — énumération via Certificate Transparency (crt.sh)
-	http.HandleFunc(
-		"/scan/subdomain",
-		func(
-			w http.ResponseWriter,
-			r *http.Request) {
-			domain := r.URL.Query().Get("domain")
-			if domain == "" {
-				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
-				return
-			}
-			result, err := scanner.SubdomainScanner{}.Scan(domain)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			w.Header().Set("Content-type", "application/json")
-			err = json.NewEncoder(w).Encode(ScanResult{
-				Scanner: "subdomain",
-				Domain:  domain,
-				Result:  result,
-			})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		},
-	)
+	http.HandleFunc("/scan/subdomain", makeScanHandler("subdomain", scanner.SubdomainScanner{}))
 
 	// Démarrage du serveur — ListenAndServe est bloquant
 	// Le programme reste ici et écoute les connexions entrantes
