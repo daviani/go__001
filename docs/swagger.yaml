@@ -1,0 +1,207 @@
+basePath: /
+definitions:
+  api.HealthResult:
+    properties:
+      status:
+        type: string
+    type: object
+  api.ScanResult:
+    properties:
+      domain:
+        type: string
+      result:
+        type: string
+      scanner:
+        type: string
+    type: object
+host: localhost:8082
+info:
+  contact: {}
+  description: API d'audit de surface d'attaque externe. Analyse DNS, certificats
+    SSL/TLS, headers de sécurité, sous-domaines et fichiers sensibles exposés.
+  title: GoSentry — Security Audit API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Vérifie que le serveur est en ligne
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResult'
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: Status du serveur
+      tags:
+      - health
+  /scan/all:
+    get:
+      description: Lance les 5 scanners en parallèle via goroutines
+      parameters:
+      - description: Domaine à scanner
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.ScanResult'
+            type: array
+        "400":
+          description: paramètre 'domain' requis
+          schema:
+            type: string
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: All Scan
+      tags:
+      - scanner
+  /scan/dns:
+    get:
+      description: Analyse les records DNS du domaine (A, AAAA, MX, NS, TXT)
+      parameters:
+      - description: Domaine à scanner
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ScanResult'
+        "400":
+          description: paramètre 'domain' requis
+          schema:
+            type: string
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: Scan DNS
+      tags:
+      - scanner
+  /scan/header:
+    get:
+      description: Vérifie les headers de sécurité (HSTS, CSP, X-Frame-Options, X-Content-Type-Options)
+      parameters:
+      - description: Domaine à scanner
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ScanResult'
+        "400":
+          description: paramètre 'domain' requis
+          schema:
+            type: string
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: Scan Headers HTTP
+      tags:
+      - scanner
+  /scan/sensitive:
+    get:
+      description: Détecte les fichiers sensibles exposés (.env, .git/config, wp-config.php,
+        etc.)
+      parameters:
+      - description: Domaine à scanner
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ScanResult'
+        "400":
+          description: paramètre 'domain' requis
+          schema:
+            type: string
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: Scan fichiers sensibles
+      tags:
+      - scanner
+  /scan/ssl:
+    get:
+      description: Analyse le certificat TLS du domaine (émetteur, expiration, validité)
+      parameters:
+      - description: Domaine à scanner
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ScanResult'
+        "400":
+          description: paramètre 'domain' requis
+          schema:
+            type: string
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: Scan SSL/TLS
+      tags:
+      - scanner
+  /scan/subdomain:
+    get:
+      description: Énumère les sous-domaines via Certificate Transparency (crt.sh)
+      parameters:
+      - description: Domaine à scanner
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ScanResult'
+        "400":
+          description: paramètre 'domain' requis
+          schema:
+            type: string
+        "500":
+          description: erreur serveur
+          schema:
+            type: string
+      summary: Scan sous-domaines
+      tags:
+      - scanner
+swagger: "2.0"
