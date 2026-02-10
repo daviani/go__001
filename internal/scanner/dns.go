@@ -22,32 +22,32 @@ func (d DNSScanner) Scan(domain string) (string, error) {
 		return "", fmt.Errorf("erreur de DNS: %w", err)
 	}
 
+	// Construction des résultats par type de record
+	resultIP := "IPs pour " + domain + ": \n"
+	resultMX := "MXs pour " + domain + ": \n"
+	resultNS := "NSs pour " + domain + ": \n"
+	resultTXT := "TXTs pour " + domain + ": \n"
+
 	// --- Records MX (serveurs mail) ---
 	// LookupMX retourne []*net.MX — chaque MX a un champ .Host (string) et .Pref (priorité)
 	mxs, err := net.LookupMX(domain)
 	if err != nil {
-		return "", fmt.Errorf("erreur de MX: %w", err)
+		resultMX = "MX : erreur de résolution"
 	}
 
 	// --- Records NS (nameservers) ---
 	// LookupNS retourne []*net.NS — chaque NS a un champ .Host (string)
 	nss, err := net.LookupNS(domain)
 	if err != nil {
-		return "", fmt.Errorf("erreur de NS: %w", err)
+		resultNS = "NS : erreur de résolution"
 	}
 
 	// --- Records TXT (SPF, vérification domaine...) ---
 	// LookupTXT retourne directement []string — pas besoin de .Host ou .String()
 	txts, err := net.LookupTXT(domain)
 	if err != nil {
-		return "", fmt.Errorf("erreur de TXT: %w", err)
+		resultTXT = "TXT : erreur de résolution"
 	}
-
-	// Construction des résultats par type de record
-	resultIP := "IPs pour " + domain + ": \n"
-	resultMX := "MXs pour " + domain + ": \n"
-	resultNS := "NSs pour " + domain + ": \n"
-	resultTXT := "TXTs pour " + domain + ": \n"
 
 	// ip.String() convertit net.IP en string lisible (ex: "188.114.96.2")
 	for _, ip := range ips {
