@@ -48,12 +48,12 @@ func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
 		// Lance le scan — peut échouer si le domaine est invalide ou injoignable
 		result, err := s.Scan(domain)
 		if err != nil {
-			// http.Error envoie un message d'erreur + code HTTP 500 au client
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
 			return
 		}
 
-		w.Header().Set("Content-type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		// Encode le résultat dans le struct ScanResult et l'envoie en JSON
 		err = json.NewEncoder(w).Encode(ScanResult{
 			Scanner: name,
@@ -61,7 +61,8 @@ func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
 			Result:  result,
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
 			return
 		}
 
@@ -80,13 +81,14 @@ func handleHealth() http.HandlerFunc {
 		w http.ResponseWriter,
 		r *http.Request) {
 		// Indique au client que la réponse est du JSON (pas du HTML ou du texte)
-		w.Header().Set("Content-type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		// json.NewEncoder(w).Encode() sérialise le struct en JSON
 		// et l'écrit directement dans le ResponseWriter
 		// Équivalent Express : res.json({ status: "ok" })
 		err := json.NewEncoder(w).Encode(HealthResult{Status: "ok"})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -187,7 +189,8 @@ func (s *Server) handleAll() http.HandlerFunc {
 				// Dans une goroutine, on ne peut pas faire http.Error (pas accès à w)
 				// On met le message d'erreur dans Result à la place
 				if err != nil {
-					result = "Erreur : " + err.Error()
+					log.Println(err)
+					result = "erreur interne du serveur"
 				}
 
 				ch <- ScanResult{
@@ -207,10 +210,11 @@ func (s *Server) handleAll() http.HandlerFunc {
 			results = append(results, result)
 		}
 
-		w.Header().Set("Content-type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(results)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
 			return
 		}
 
