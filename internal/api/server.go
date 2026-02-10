@@ -108,6 +108,57 @@ func (s *Server) Start() {
 
 	http.HandleFunc("/scan/subdomain", makeScanHandler("subdomain", scanner.SubdomainScanner{}))
 
+	// Route /scan/all — lance TOUS les scanners en parallèle via goroutines
+	// Retourne une slice JSON de ScanResult : [{scanner, domain, result}, ...]
+	http.HandleFunc("/scan/all", func(w http.ResponseWriter, r *http.Request) {
+		domain := r.URL.Query().Get("domain")
+
+		if domain == "" {
+			http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+			return
+		}
+
+		// Channel pour recevoir les résultats des goroutines
+		// Chaque goroutine y envoie un ScanResult quand elle a fini
+		ch := make(chan ScanResult)
+
+		// Lance une goroutine par scanner — exécution en parallèle
+		// sc est passé en paramètre pour éviter les problèmes de closure
+		for _, sc := range s.Scanners {
+			go func(sc scanner.Scanner) {
+				result, err := sc.Scan(domain)
+				// Dans une goroutine, on ne peut pas faire http.Error (pas accès à w)
+				// On met le message d'erreur dans Result à la place
+				if err != nil {
+					result = "Erreur : " + err.Error()
+				}
+
+				ch <- ScanResult{
+					Scanner: sc.Name(),
+					Domain:  domain,
+					Result:  result,
+				}
+			}(sc)
+		}
+
+		// Collecte les résultats — <-ch bloque jusqu'à recevoir un résultat
+		// On itère autant de fois qu'il y a de scanners
+		var results []ScanResult
+
+		for i := 0; i < len(s.Scanners); i++ {
+			result := <-ch
+			results = append(results, result)
+		}
+
+		w.Header().Set("Content-type", "application/json")
+		err := json.NewEncoder(w).Encode(results)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	})
+
 	// Démarrage du serveur — ListenAndServe est bloquant
 	// Le programme reste ici et écoute les connexions entrantes
 	fmt.Println("Serveur démarré sur le port :", s.Port)
