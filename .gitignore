@@ -11,6 +11,7 @@ security-audit
 CLAUDE.md
 
 # Go binaries
+scanner
 *.exe
 *.exe~
 *.dll
