@@ -24,13 +24,23 @@ func (s SSLScanner) Scan(domain string) (string, error) {
 	// _ = ignore l'erreur de Close() volontairement
 	defer func() { _ = conn.Close() }()
 
+	certs := conn.ConnectionState().PeerCertificates
+
+	if len(certs) == 0 {
+		return "", fmt.Errorf("erreur SSL: no client certificate")
+	}
 	// Récupère le premier certificat de la chaîne (celui du domaine)
-	cert := conn.ConnectionState().PeerCertificates[0]
+	cert := certs[0]
+
+	issuer := "Inconnu"
+	if len(cert.Issuer.Organization) > 0 {
+		issuer = cert.Issuer.Organization[0]
+	}
 
 	// Sprintf formate les infos du certificat en une string lisible
 	// Format date : "02/01/2006" = jour/mois/année (format Go spécifique)
 	return fmt.Sprintf("Domaine: %s | Émetteur: %s | Expire: %s",
 		cert.Subject.CommonName,
-		cert.Issuer.Organization[0],
+		issuer,
 		cert.NotAfter.Format("02/01/2006")), nil
 }
