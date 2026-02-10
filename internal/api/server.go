@@ -6,15 +6,15 @@ import (
 	"log"
 	"net/http"
 
-	_ "github.com/daviani/go__001/docs"          // Blank import — enregistre la spec Swagger au démarrage via init()
+	_ "github.com/daviani/go__001/docs"           // Blank import — enregistre la spec Swagger au démarrage via init()
 	"github.com/daviani/go__001/internal/scanner" // Package contenant l'interface Scanner et ses implémentations
-	httpSwagger "github.com/swaggo/http-swagger"   // Middleware servant l'interface Swagger UI
+	httpSwagger "github.com/swaggo/http-swagger"  // Middleware servant l'interface Swagger UI
 )
 
 // Server contient la configuration du serveur HTTP et la liste des scanners disponibles
 type Server struct {
-	Port     int                // Port d'écoute (ex: 8082)
-	Scanners []scanner.Scanner  // Slice des scanners — utilisée par handleAll pour les goroutines
+	Port     int               // Port d'écoute (ex: 8082)
+	Scanners []scanner.Scanner // Slice des scanners — utilisée par handleAll pour les goroutines
 }
 
 // HealthResult — réponse JSON pour GET /health
@@ -217,6 +217,24 @@ func (s *Server) handleAll() http.HandlerFunc {
 	}
 }
 
+// corsMiddleware — middleware qui ajoute les headers CORS à chaque réponse
+// Intercepte les requêtes avant qu'elles n'atteignent le handler final
+// Les requêtes OPTIONS (preflight) sont traitées directement avec un 200
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// Requête preflight (OPTIONS) — le navigateur demande la permission avant le vrai appel
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Start enregistre les routes HTTP et démarre le serveur
 // Toutes les routes sont enregistrées AVANT ListenAndServe (qui est bloquant)
 func (s *Server) Start() {
@@ -246,7 +264,7 @@ func (s *Server) Start() {
 	// nil = utilise le routeur par défaut (celui où on a enregistré les routes avec HandleFunc)
 	err := http.ListenAndServe(
 		fmt.Sprintf(":%d", s.Port),
-		nil,
+		corsMiddleware(http.DefaultServeMux),
 	)
 
 	// Si ListenAndServe retourne, c'est qu'il y a eu une erreur (ex: port déjà pris)
