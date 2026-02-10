@@ -11,24 +11,6 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"  // Middleware servant l'interface Swagger UI
 )
 
-// Server contient la configuration du serveur HTTP et la liste des scanners disponibles
-type Server struct {
-	Port     int               // Port d'écoute (ex: 8082)
-	Scanners []scanner.Scanner // Slice des scanners — utilisée par handleAll pour les goroutines
-}
-
-// HealthResult — réponse JSON pour GET /health
-type HealthResult struct {
-	Status string `json:"status"`
-}
-
-// ScanResult — réponse JSON pour les routes /scan/*
-type ScanResult struct {
-	Scanner string `json:"scanner"` // Nom du scanner (dns, ssl, header...)
-	Domain  string `json:"domain"`  // Domaine scanné
-	Result  string `json:"result"`  // Résultat du scan (texte brut)
-}
-
 // makeScanHandler — closure qui retourne un handler HTTP pour un scanner donné
 // Évite la duplication de code : le même pattern gère les 5 routes /scan/*
 // name et s sont "capturés" par la closure et accessibles à chaque requête
