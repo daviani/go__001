@@ -68,6 +68,13 @@ func (s *Server) Start() {
 			// r.URL.Query().Get("domain") extrait le query param "domain" de l'URL
 			// Équivalent Express : req.query.domain
 			domain := r.URL.Query().Get("domain")
+			// Validation : si le domain est vide, retourne une erreur 400 (Bad Request)
+			// 400 = erreur client ("tu as mal appelé l'API")
+			// 500 = erreur serveur ("le serveur a planté")
+			if domain == "" {
+				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+				return
+			}
 
 			// Lance le scan DNS — peut échouer si le domaine est invalide
 			result, err := scanner.DNSScanner{}.Scan(domain)
@@ -98,7 +105,10 @@ func (s *Server) Start() {
 			w http.ResponseWriter,
 			r *http.Request) {
 			domain := r.URL.Query().Get("domain")
-
+			if domain == "" {
+				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+				return
+			}
 			result, err := scanner.HeaderScanner{}.Scan(domain)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -125,7 +135,10 @@ func (s *Server) Start() {
 			w http.ResponseWriter,
 			r *http.Request) {
 			domain := r.URL.Query().Get("domain")
-
+			if domain == "" {
+				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+				return
+			}
 			result, err := scanner.SensitiveScanner{}.Scan(domain)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -152,7 +165,10 @@ func (s *Server) Start() {
 			w http.ResponseWriter,
 			r *http.Request) {
 			domain := r.URL.Query().Get("domain")
-
+			if domain == "" {
+				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+				return
+			}
 			result, err := scanner.SSLScanner{}.Scan(domain)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -179,7 +195,10 @@ func (s *Server) Start() {
 			w http.ResponseWriter,
 			r *http.Request) {
 			domain := r.URL.Query().Get("domain")
-
+			if domain == "" {
+				http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+				return
+			}
 			result, err := scanner.SubdomainScanner{}.Scan(domain)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
