@@ -1,0 +1,201 @@
+package api
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"github.com/daviani/go__001/internal/scanner"
+)
+
+// makeScanHandler — closure qui retourne un handler HTTP pour un scanner donné
+// Évite la duplication de code : le même pattern gère les 5 routes /scan/*
+// name et s sont "capturés" par la closure et accessibles à chaque requête
+func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// r.URL.Query().Get("domain") extrait le query param "domain" de l'URL
+		// Équivalent Express : req.query.domain
+		domain := r.URL.Query().Get("domain")
+		// Validation : si le domain est vide, retourne une erreur 400 (Bad Request)
+		// 400 = erreur client ("tu as mal appelé l'API")
+		// 500 = erreur serveur ("le serveur a planté")
+		if domain == "" {
+			http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+			return
+		}
+
+		// Lance le scan — peut échouer si le domaine est invalide ou injoignable
+		result, err := s.Scan(domain)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		// Encode le résultat dans le struct ScanResult et l'envoie en JSON
+		err = json.NewEncoder(w).Encode(ScanResult{
+			Scanner: name,
+			Domain:  domain,
+			Result:  result,
+		})
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
+			return
+		}
+
+	}
+}
+
+// @Summary     Status du serveur
+// @Description Vérifie que le serveur est en ligne
+// @Tags        health
+// @Produce     json
+// @Success     200 {object} HealthResult
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /health [get]
+func handleHealth() http.HandlerFunc {
+	return func(
+		w http.ResponseWriter,
+		r *http.Request) {
+		// Indique au client que la réponse est du JSON (pas du HTML ou du texte)
+		w.Header().Set("Content-Type", "application/json")
+		// json.NewEncoder(w).Encode() sérialise le struct en JSON
+		// et l'écrit directement dans le ResponseWriter
+		// Équivalent Express : res.json({ status: "ok" })
+		err := json.NewEncoder(w).Encode(HealthResult{Status: "ok"})
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+// @Summary     Scan DNS
+// @Description Analyse les records DNS du domaine (A, AAAA, MX, NS, TXT)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/dns [get]
+func handleDNS() http.HandlerFunc {
+	return makeScanHandler("dns", scanner.DNSScanner{})
+}
+
+// @Summary     Scan SSL/TLS
+// @Description Analyse le certificat TLS du domaine (émetteur, expiration, validité)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/ssl [get]
+func handleSSL() http.HandlerFunc {
+	return makeScanHandler("ssl", scanner.SSLScanner{})
+}
+
+// @Summary     Scan Headers HTTP
+// @Description Vérifie les headers de sécurité (HSTS, CSP, X-Frame-Options, X-Content-Type-Options)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/header [get]
+func handleHeader() http.HandlerFunc {
+	return makeScanHandler("header", scanner.HeaderScanner{})
+}
+
+// @Summary     Scan fichiers sensibles
+// @Description Détecte les fichiers sensibles exposés (.env, .git/config, wp-config.php, etc.)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/sensitive [get]
+func handleSensitive() http.HandlerFunc {
+	return makeScanHandler("sensitive", scanner.SensitiveScanner{})
+}
+
+// @Summary     Scan sous-domaines
+// @Description Énumère les sous-domaines via Certificate Transparency (crt.sh)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/subdomain [get]
+func handleSubdomain() http.HandlerFunc {
+	return makeScanHandler("subdomain", scanner.SubdomainScanner{})
+}
+
+// @Summary     All Scan
+// @Description Lance les 5 scanners en parallèle via goroutines
+// @Tags        scanner
+// @Produce     json
+// @Param 		domain query string true "Domaine à scanner"
+// @Success     200 {array} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/all [get]
+func (s *Server) handleAll() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		domain := r.URL.Query().Get("domain")
+
+		if domain == "" {
+			http.Error(w, "paramètre 'domain' requis", http.StatusBadRequest)
+			return
+		}
+
+		// Channel pour recevoir les résultats des goroutines
+		// Chaque goroutine y envoie un ScanResult quand elle a fini
+		ch := make(chan ScanResult)
+
+		// Lance une goroutine par scanner — exécution en parallèle
+		// sc est passé en paramètre pour éviter les problèmes de closure
+		for _, sc := range s.Scanners {
+			go func(sc scanner.Scanner) {
+				result, err := sc.Scan(domain)
+				// Dans une goroutine, on ne peut pas faire http.Error (pas accès à w)
+				// On met le message d'erreur dans Result à la place
+				if err != nil {
+					log.Println(err)
+					result = "erreur interne du serveur"
+				}
+
+				ch <- ScanResult{
+					Scanner: sc.Name(),
+					Domain:  domain,
+					Result:  result,
+				}
+			}(sc)
+		}
+
+		// Collecte les résultats — <-ch bloque jusqu'à recevoir un résultat
+		// On itère autant de fois qu'il y a de scanners
+		var results []ScanResult
+
+		for i := 0; i < len(s.Scanners); i++ {
+			result := <-ch
+			results = append(results, result)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(results)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "erreur interne du serveur", http.StatusInternalServerError)
+			return
+		}
+
+	}
+}
