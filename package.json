@@ -1,0 +1,22 @@
+{
+  "name": "gosentry",
+  "version": "1.0.0",
+  "description": "API REST d'audit de surface d'attaque externe, écrite en Go sans framework.",
+  "homepage": "https://github.com/daviani/go__001#readme",
+  "bugs": {
+    "url": "https://github.com/daviani/go__001/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daviani/go__001.git"
+  },
+  "license": "ISC",
+  "author": "Daviani",
+  "scripts": {
+    "dev": "concurrently \"go run main.go\" \"npm run dev --prefix web\"",
+    "test-go": "go test ./... -v"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
