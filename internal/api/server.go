@@ -6,36 +6,32 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/daviani/go__001/internal/scanner"
+	_ "github.com/daviani/go__001/docs"          // Blank import — enregistre la spec Swagger au démarrage via init()
+	"github.com/daviani/go__001/internal/scanner" // Package contenant l'interface Scanner et ses implémentations
+	httpSwagger "github.com/swaggo/http-swagger"   // Middleware servant l'interface Swagger UI
 )
 
-// Server contient la configuration du serveur HTTP
-// Port : port d'écoute (ex: 8082)
-// Scanners : slice d'interfaces Scanner disponibles pour les routes /scan/*
+// Server contient la configuration du serveur HTTP et la liste des scanners disponibles
 type Server struct {
-	Port     int
-	Scanners []scanner.Scanner
+	Port     int                // Port d'écoute (ex: 8082)
+	Scanners []scanner.Scanner  // Slice des scanners — utilisée par handleAll pour les goroutines
 }
 
-// HealthResult — structure de réponse JSON pour /health
-// Sérialisée en JSON via json.NewEncoder : {"status": "ok"}
+// HealthResult — réponse JSON pour GET /health
 type HealthResult struct {
 	Status string `json:"status"`
 }
 
-// ScanResult — structure de réponse JSON pour les routes /scan/*
-// Les tags `json:"..."` définissent les noms des clés dans le JSON de sortie
-// Équivalent JS : { scanner: "dns", domain: "daviani.dev", result: "..." }
+// ScanResult — réponse JSON pour les routes /scan/*
 type ScanResult struct {
-	Scanner string `json:"scanner"`
-	Domain  string `json:"domain"`
-	Result  string `json:"result"`
+	Scanner string `json:"scanner"` // Nom du scanner (dns, ssl, header...)
+	Domain  string `json:"domain"`  // Domaine scanné
+	Result  string `json:"result"`  // Résultat du scan (texte brut)
 }
 
-// makeScanHandler retourne un handler HTTP pour un scanner donné (closure)
-// Évite la duplication : le même code gère les 5 routes /scan/*
-// name et s sont "capturés" par la closure — accessibles à chaque requête
-// Équivalent JS : const makeHandler = (name, scanner) => (req, res) => { ... }
+// makeScanHandler — closure qui retourne un handler HTTP pour un scanner donné
+// Évite la duplication de code : le même pattern gère les 5 routes /scan/*
+// name et s sont "capturés" par la closure et accessibles à chaque requête
 func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// r.URL.Query().Get("domain") extrait le query param "domain" de l'URL
@@ -49,7 +45,7 @@ func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
 			return
 		}
 
-		// Lance le scan DNS — peut échouer si le domaine est invalide
+		// Lance le scan — peut échouer si le domaine est invalide ou injoignable
 		result, err := s.Scan(domain)
 		if err != nil {
 			// http.Error envoie un message d'erreur + code HTTP 500 au client
@@ -72,45 +68,106 @@ func makeScanHandler(name string, s scanner.Scanner) http.HandlerFunc {
 	}
 }
 
-// Start enregistre les routes HTTP et démarre le serveur
-// w http.ResponseWriter = équivalent de res en Express (on écrit la réponse dedans)
-// r *http.Request = équivalent de req en Express (la requête entrante)
-// Les routes sont enregistrées AVANT ListenAndServe qui est bloquant
-func (s *Server) Start() {
+// @Summary     Status du serveur
+// @Description Vérifie que le serveur est en ligne
+// @Tags        health
+// @Produce     json
+// @Success     200 {object} HealthResult
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /health [get]
+func handleHealth() http.HandlerFunc {
+	return func(
+		w http.ResponseWriter,
+		r *http.Request) {
+		// Indique au client que la réponse est du JSON (pas du HTML ou du texte)
+		w.Header().Set("Content-type", "application/json")
+		// json.NewEncoder(w).Encode() sérialise le struct en JSON
+		// et l'écrit directement dans le ResponseWriter
+		// Équivalent Express : res.json({ status: "ok" })
+		err := json.NewEncoder(w).Encode(HealthResult{Status: "ok"})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
 
-	// Route /health — status du serveur
-	// Retourne {"status": "ok"} pour vérifier que le serveur tourne
-	http.HandleFunc(
-		"/health",
-		func(
-			w http.ResponseWriter,
-			r *http.Request) {
-			// Indique au client que la réponse est du JSON (pas du HTML ou du texte)
-			w.Header().Set("Content-type", "application/json")
-			// json.NewEncoder(w).Encode() sérialise le struct en JSON
-			// et l'écrit directement dans le ResponseWriter
-			// Équivalent Express : res.json({ status: "ok" })
-			err := json.NewEncoder(w).Encode(HealthResult{Status: "ok"})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		},
-	)
+// @Summary     Scan DNS
+// @Description Analyse les records DNS du domaine (A, AAAA, MX, NS, TXT)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/dns [get]
+func handleDNS() http.HandlerFunc {
+	return makeScanHandler("dns", scanner.DNSScanner{})
+}
 
-	http.HandleFunc("/scan/dns", makeScanHandler("dns", scanner.DNSScanner{}))
+// @Summary     Scan SSL/TLS
+// @Description Analyse le certificat TLS du domaine (émetteur, expiration, validité)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/ssl [get]
+func handleSSL() http.HandlerFunc {
+	return makeScanHandler("ssl", scanner.SSLScanner{})
+}
 
-	http.HandleFunc("/scan/ssl", makeScanHandler("ssl", scanner.SSLScanner{}))
+// @Summary     Scan Headers HTTP
+// @Description Vérifie les headers de sécurité (HSTS, CSP, X-Frame-Options, X-Content-Type-Options)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/header [get]
+func handleHeader() http.HandlerFunc {
+	return makeScanHandler("header", scanner.HeaderScanner{})
+}
 
-	http.HandleFunc("/scan/header", makeScanHandler("header", scanner.HeaderScanner{}))
+// @Summary     Scan fichiers sensibles
+// @Description Détecte les fichiers sensibles exposés (.env, .git/config, wp-config.php, etc.)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/sensitive [get]
+func handleSensitive() http.HandlerFunc {
+	return makeScanHandler("sensitive", scanner.SensitiveScanner{})
+}
 
-	http.HandleFunc("/scan/sensitive", makeScanHandler("sensitive", scanner.SensitiveScanner{}))
+// @Summary     Scan sous-domaines
+// @Description Énumère les sous-domaines via Certificate Transparency (crt.sh)
+// @Tags        scanner
+// @Produce     json
+// @Param       domain query string true "Domaine à scanner"
+// @Success     200 {object} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/subdomain [get]
+func handleSubdomain() http.HandlerFunc {
+	return makeScanHandler("subdomain", scanner.SubdomainScanner{})
+}
 
-	http.HandleFunc("/scan/subdomain", makeScanHandler("subdomain", scanner.SubdomainScanner{}))
-
-	// Route /scan/all — lance TOUS les scanners en parallèle via goroutines
-	// Retourne une slice JSON de ScanResult : [{scanner, domain, result}, ...]
-	http.HandleFunc("/scan/all", func(w http.ResponseWriter, r *http.Request) {
+// @Summary     All Scan
+// @Description Lance les 5 scanners en parallèle via goroutines
+// @Tags        scanner
+// @Produce     json
+// @Param 		domain query string true "Domaine à scanner"
+// @Success     200 {array} ScanResult
+// @Failure     400 {string} string "paramètre 'domain' requis"
+// @Failure     500 {string} string "erreur serveur"
+// @Router      /scan/all [get]
+func (s *Server) handleAll() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		domain := r.URL.Query().Get("domain")
 
 		if domain == "" {
@@ -157,7 +214,29 @@ func (s *Server) Start() {
 			return
 		}
 
-	})
+	}
+}
+
+// Start enregistre les routes HTTP et démarre le serveur
+// Toutes les routes sont enregistrées AVANT ListenAndServe (qui est bloquant)
+func (s *Server) Start() {
+
+	// Swagger UI — documentation interactive de l'API sur /swagger/index.html
+	http.HandleFunc("/swagger/", httpSwagger.Handler())
+
+	http.HandleFunc("/health", handleHealth())
+
+	http.HandleFunc("/scan/dns", handleDNS())
+
+	http.HandleFunc("/scan/ssl", handleSSL())
+
+	http.HandleFunc("/scan/header", handleHeader())
+
+	http.HandleFunc("/scan/sensitive", handleSensitive())
+
+	http.HandleFunc("/scan/subdomain", handleSubdomain())
+
+	http.HandleFunc("/scan/all", s.handleAll())
 
 	// Démarrage du serveur — ListenAndServe est bloquant
 	// Le programme reste ici et écoute les connexions entrantes

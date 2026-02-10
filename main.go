@@ -12,6 +12,12 @@ func init() {
 		return
 	}
 }
+
+// @title           GoSentry — Security Audit API
+// @version         1.0
+// @description     API d'audit de surface d'attaque externe. Analyse DNS, certificats SSL/TLS, headers de sécurité, sous-domaines et fichiers sensibles exposés.
+// @host            localhost:8082
+// @BasePath        /
 func main() {
 	// Initialisation des scanners (structs vides qui implémentent l'interface Scanner)
 	dns := scanner.DNSScanner{}
