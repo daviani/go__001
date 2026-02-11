@@ -37,3 +37,4 @@ __debug_bin*
 
 .env
 node_modules/
+.playwright-mcp/
