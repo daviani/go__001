@@ -15,11 +15,18 @@ export const toaster = createToaster({
 })
 
 export const Toaster = () => {
+  const bgColors: Record<string, string> = {
+    error: "nord.red",
+    success: "nord.green",
+    warning: "nord.orange",
+    info: "nord.frost1",
+  }
+
   return (
     <Portal>
       <ChakraToaster toaster={toaster} insetInline={{ mdDown: "4" }}>
         {(toast) => (
-          <Toast.Root width={{ md: "sm" }}>
+          <Toast.Root bg={toast.type ? bgColors[toast.type] : "bg.card"} color="text.main" width={{ md: "sm" }}>
             {toast.type === "loading" ? (
               <Spinner size="sm" color="blue.solid" />
             ) : (
