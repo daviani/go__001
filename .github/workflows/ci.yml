@@ -64,6 +64,8 @@ jobs:
       # Si un test échoue, le pipeline s'arrête ici
       - name: Run tests
         run: go test ./... -v
+        env:
+          CI: "true"
 
       # ── Step 5 : Builder le binaire ──
       # Vérifie que le code compile correctement
