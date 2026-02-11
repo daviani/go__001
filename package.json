@@ -14,7 +14,9 @@
   "author": "Daviani",
   "scripts": {
     "dev": "concurrently \"go run main.go\" \"npm run dev --prefix web\"",
-    "test-go": "go test ./... -v"
+    "test-go": "go test ./... -v",
+    "test-web": "npm test --prefix web",
+    "test": "concurrently \"npm run test-go\" \"npm run test-web\""
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
