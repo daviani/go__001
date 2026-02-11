@@ -26,6 +26,7 @@ const config = defineConfig({
         },
         semanticTokens: {
             colors: {
+                'bg.header':  { value: '{colors.nord.polar1}' },
                 'bg.page':    { value: { base: '{colors.nord.snow2}', _dark: '{colors.nord.polar0}' } },
                 'bg.card':    { value: { base: '{colors.nord.snow1}', _dark: '{colors.nord.polar1}' } },
                 'text.main':  { value: { base: '{colors.nord.polar0}', _dark: '{colors.nord.snow1}' } },
