@@ -25,6 +25,9 @@ RUN go build -o scanner .
 # Le stage 1 (builder) est jeté → image finale ~17MB au lieu de ~800MB
 FROM alpine:latest
 
+# Installe les certificats CA pour les requêtes HTTPS
+RUN apk add --no-cache ca-certificates
+
 # Copie uniquement le binaire compilé depuis le stage builder
 # --from=builder référence le stage nommé "builder" au-dessus
 COPY --from=builder /app/scanner /scanner
