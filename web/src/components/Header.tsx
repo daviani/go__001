@@ -4,7 +4,6 @@ import {useColorMode} from "./ui/color-mode.tsx";
 function Header() {
     const {colorMode, toggleColorMode } = useColorMode()
     return (
-        <>
             <Flex justify="space-between" align="center" p="4" bg="bg.header">
                 <Text color="nord.snow1" textStyle="2xl" fontWeight="bold" >
                     Go Sentry - Scan
@@ -13,7 +12,6 @@ function Header() {
                     {colorMode === 'light' ? '🌙' : '☀️'}
                 </Button>
             </Flex>
-        </>
     )
 }
 
