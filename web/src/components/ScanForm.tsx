@@ -8,15 +8,16 @@ function ScanForm({ onScan }: { onScan: (domain: string, scanType: string) => vo
     const [scanType, setScanType] = useState("all")
 
     const handleClick = () => {
-        if (!isValidDomain(domain)) {
+        const trimmed = domain.trim()
+        if (!isValidDomain(trimmed)) {
             toaster.create({ title: "Format de domaine invalide", type: "warning" })
             return
         }
-        if (!isValidExtension(domain)) {
+        if (!isValidExtension(trimmed)) {
             toaster.create({ title: "Extension de domaine inconnue", type: "warning" })
             return
         }
-        onScan(domain, scanType)
+        onScan(trimmed, scanType)
     }
 
     return (

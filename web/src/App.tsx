@@ -19,6 +19,7 @@ function App() {
             const data = await scanDomain(domain, scanType);
             setResults(data);
         } catch (e) {
+            console.error("Scan failed:", e)
             toaster.create({ title: "Erreur lors du scan", type: "error" })
         } finally {
             setLoading(false)
