@@ -7,7 +7,9 @@ export interface ScanResult {
 }
 
 export async function scanDomain(domain: string, scanType: string): Promise<ScanResult[]> {
-    const res = await fetch(`${API_URL}/scan/${scanType}?domain=${domain}`)
+    // Encode le domaine pour éviter l'injection de paramètres dans l'URL
+    const params = new URLSearchParams({ domain })
+    const res = await fetch(`${API_URL}/scan/${scanType}?${params}`)
     if (!res.ok) {
         throw new Error('Erreur serveur')
     }
